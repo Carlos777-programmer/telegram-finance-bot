@@ -2,12 +2,24 @@ import os
 import re
 from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
+from database import criar_tabela, salvar_gasto, db_obter_resumo_total
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 USER_ID = int(os.getenv("MY_TELEGRAM_ID"))
+
+async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.message.from_user.id # Pega o ID de quem mandou a mensagem
+    if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
+        await update.message.reply_text("⚠️ **SECURITY ALERT** ⚠️\n\n"
+        "Tentativa de acesso não autorizada detectada.\n"
+        "Este bot é de uso privado. 🔒", parse_mode='Markdown'
+        )
+        return
+    total = db_obter_resumo_total(uid)
+    await update.message.reply_text(f"📊 *Seu Resumo Geral*\n\nTotal gasto: *R$ {total:.2f}*", parse_mode='Markdown')
 
 def parser_financeiro(texto):
     """Extrai valor, descrição e categoria de uma frase."""
@@ -16,14 +28,9 @@ def parser_financeiro(texto):
         return None
     
     valor = float(valor_match.group(1).replace(',', '.'))
-
-    # Procura a categoria (ex: #carro)
-    categoria_match = re.search(r'#(\w+)', texto)
+    categoria_match = re.search(r'#(\w+)', texto) # Procura a categoria (ex: #carro)
     categoria = categoria_match.group(1) if categoria_match else "Geral"
-
-    # Remove o valor e a categoria para sobrar a descrição 
-    descricao = texto.replace(valor_match.group(0), "").replace(f"#{categoria}", "").strip()
-    
+    descricao = texto.replace(valor_match.group(0), "").replace(f"#{categoria}", "").strip() # Remove o valor e a categoria para sobrar a descrição 
     return {"valor": valor, "descricao": descricao or "Sem Descrição", "categoria": categoria}
 
 async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,19 +44,28 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
     dados = parser_financeiro(update.message.text)
 
     if dados:
-        resposta = (
-            f"✅ *Gasto Identificado!*\n"
-            f"---"
-            f"💰 *Valor:* R$ {dados['valor']:.2f}\n"
-            f"📝 *Descrição:* {dados['descricao']}\n"
-            f"🏷️ *Categoria:* #{dados['categoria']}"
-        )
+        try:
+            salvar_gasto(
+                usuario_id=update.message.from_user.id,
+                valor=dados['valor'],
+                descricao=dados['descricao'],
+                categoria=dados['categoria']
+            )
+            resposta = (
+                f"✅ *Gasto Salvo!*\n"
+                f"---"
+                f"💰 *Valor:* R$ {dados['valor']:.2f}\n"
+                f"📝 *Descrição:* {dados['descricao']}\n"
+                f"🏷️ *Categoria:* #{dados['categoria']}"
+            )
+        except Exception as e: 
+            resposta = f"❌ Erro ao salvar no banco: {e}"
         await update.message.reply_text(resposta, parse_mode='Markdown')
     else:
         await update.message.reply_text("❓ Não entendi o formato.\n Use: `Valor Descrição #categoria`")
     
 if __name__ == '__main__':
-        
+    criar_tabela() # Cria a tabela no banco de dados assim que o bot liga (se não existir)    
     try:
         print("--- Iniciando o Processo de Boot do Bot ---")
         
@@ -60,7 +76,11 @@ if __name__ == '__main__':
             
             # Handler para mensagens de texto
             msg_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), processar_mensagem)
+            resumo_handler = CommandHandler("resumo", resumo_geral)
+
+            # Sensores do BOT
             application.add_handler(msg_handler)
+            application.add_handler(resumo_handler)
             
             print("✅ Bot está online e ouvindo...")
             application.run_polling()
