@@ -20,7 +20,7 @@ Este projeto é um sistema de gestão financeira pessoal que utiliza o Telegram 
 - [x] Registro de gastos via comandos simples (Ex: `50.00 Gasolina #carro`).
 - [x] Categorização automática utilizando hashtags.
 - [ ] Consulta de saldo e resumo mensal diretamente pelo chat.
-- [ ] Sistema de segurança que responde apenas ao ID do proprietário.
+- [x] Sistema de segurança que responde apenas ao ID do proprietário.
 - [ ] Exportação de dados para CSV/Excel.
 
 ---
