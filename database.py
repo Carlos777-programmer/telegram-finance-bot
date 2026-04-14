@@ -44,3 +44,12 @@ def db_obter_resumo_total(usuario_id):
     resultado = cursor.fetchone()
     conn.close()
     return resultado[0] if resultado[0] is not None else 0
+
+def db_resumo_por_categoria(usuario_id):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("SELECT categoria, SUM(valor) FROM gastos WHERE usuario_id = ? GROUP BY categoria", (usuario_id,))
+    resultado = cursor.fetchall()
+    print(f"O que o banco devolveu: {resultado}") # Para listar no terminal os dados
+    conn.close()
+    return resultado

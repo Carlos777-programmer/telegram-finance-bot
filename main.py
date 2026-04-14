@@ -3,12 +3,29 @@ import re
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
-from database import criar_tabela, salvar_gasto, db_obter_resumo_total
+import database
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 USER_ID = int(os.getenv("MY_TELEGRAM_ID"))
+
+async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.message.from_user.id # Pega o ID do usuário que mandou a mensagem
+    if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
+        await update.message.reply_text("⚠️ *SECURITY ALERT* ⚠️\n\n"
+        "Tentativa de acesso não autorizada detectada.\n"
+        "Este bot é de uso privado. 🔒", parse_mode='Markdown'
+        )
+        return
+    total = database.db_resumo_por_categoria(uid)
+    mensagem = "📊 *Resumo por Categoria:*\n"
+    for linha in total:
+        categoria = linha[0]
+        valor = linha[1]
+        mensagem += f"🔹 {categoria}: R$ {valor:.2f}\n"
+    await update.message.reply_text(mensagem, parse_mode='Markdown')
+    
 
 async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.message.from_user.id # Pega o ID de quem mandou a mensagem
@@ -18,7 +35,7 @@ async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Este bot é de uso privado. 🔒", parse_mode='Markdown'
         )
         return
-    total = db_obter_resumo_total(uid)
+    total = database.db_obter_resumo_total(uid)
     await update.message.reply_text(f"📊 *Seu Resumo Geral*\n\nTotal gasto: *R$ {total:.2f}*", parse_mode='Markdown')
 
 def parser_financeiro(texto):
@@ -45,7 +62,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if dados:
         try:
-            salvar_gasto(
+            database.salvar_gasto(
                 usuario_id=update.message.from_user.id,
                 valor=dados['valor'],
                 descricao=dados['descricao'],
@@ -65,7 +82,7 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("❓ Não entendi o formato.\n Use: `Valor Descrição #categoria`")
     
 if __name__ == '__main__':
-    criar_tabela() # Cria a tabela no banco de dados assim que o bot liga (se não existir)    
+    database.criar_tabela() # Cria a tabela no banco de dados assim que o bot liga (se não existir)    
     try:
         print("--- Iniciando o Processo de Boot do Bot ---")
         
@@ -77,10 +94,12 @@ if __name__ == '__main__':
             # Handler para mensagens de texto
             msg_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), processar_mensagem)
             resumo_handler = CommandHandler("resumo", resumo_geral)
+            categoria_handler = CommandHandler("categoria", resumo_por_categoria)
 
             # Sensores do BOT
             application.add_handler(msg_handler)
             application.add_handler(resumo_handler)
+            application.add_handler(categoria_handler)
             
             print("✅ Bot está online e ouvindo...")
             application.run_polling()
