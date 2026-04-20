@@ -1,14 +1,30 @@
 import os 
 import re
 from dotenv import load_dotenv
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters, CommandHandler, CallbackQueryHandler
 import database
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 USER_ID = int(os.getenv("MY_TELEGRAM_ID"))
+
+def menu_principal(): # Menu Principal, para seleção de próximo processo. (Para melhor controle de Usuário.)
+    keyboard = [
+        [
+            InlineKeyboardButton("➕ Registrar Gasto", callback_data='menu_gasto'),
+            InlineKeyboardButton("📊 Ver Resumo", callback_data='menu_resumo'),
+        ],
+        [InlineKeyboardButton("⚙️ Configurações", callback_data='menu_config')]
+    ]
+    return InlineKeyboardMarkup(keyboard) # Criando o objeto de teclado
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Olá, Carlos! Como podemos prosseguir?",
+        reply_markup=menu_principal()
+    )
 
 async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.message.from_user.id # Pega o ID do usuário que mandou a mensagem
@@ -28,7 +44,18 @@ async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYP
     
 
 async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.message.from_user.id # Pega o ID de quem mandou a mensagem
+    # Lógica para capturar o ID independente de como o comando veio
+    if update.message:
+        # Se veio por mensagem (/resumo)
+        user_data = update.message.from_user
+        responder = update.message.reply_text
+    else:
+        # Se veio pelo clique do botão 
+        user_data = update.callback_query.from_user
+        responder = update.callback_query.edit_message_text
+
+    uid = user_data.id # Pega o ID de quem mandou a mensagem
+
     if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
         await update.message.reply_text("⚠️ **SECURITY ALERT** ⚠️\n\n"
         "Tentativa de acesso não autorizada detectada.\n"
@@ -36,7 +63,8 @@ async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     total = database.db_obter_resumo_total(uid)
-    await update.message.reply_text(f"📊 *Seu Resumo Geral*\n\nTotal gasto: *R$ {total:.2f}*", parse_mode='Markdown')
+    mensagem = f"📊 *Seu Resumo Geral*\n\nTotal gasto: *R$ {total:.2f}*"
+    await responder(mensagem, parse_mode='Markdown')
 
 def parser_financeiro(texto):
     """Extrai valor, descrição e categoria de uma frase."""
@@ -80,7 +108,27 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(resposta, parse_mode='Markdown')
     else:
         await update.message.reply_text("❓ Não entendi o formato.\n Use: `Valor Descrição #categoria`")
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = query.from_user.id # Pega o ID de quem mandou a mensagem
+    if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
+        await update.message.reply_text("⚠️ **SECURITY ALERT** ⚠️\n\n"
+        "Tentativa de acesso não autorizada detectada.\n"
+        "Este bot é de uso privado. 🔒", parse_mode='Markdown'
+        )
+        return
+    query = update.callback_query
+    await query.answer() # Tira o relógio de carregamento do botão
+
+    if query.data == 'menu_gasto':
+        await query.edit_message_text(text="Escolha a categoria ou digite o valor:") # 
     
+    elif query.data == 'menu_resumo':
+        await query.edit_message_text(text="Calculando seus gastos...")
+        return await resumo_geral(update, context)
+
+
 if __name__ == '__main__':
     database.criar_tabela() # Cria a tabela no banco de dados assim que o bot liga (se não existir)    
     try:
@@ -92,15 +140,18 @@ if __name__ == '__main__':
             application = ApplicationBuilder().token(TOKEN).build()
             
             # Handler para mensagens de texto
+            start_handler = CommandHandler("start", start)
             msg_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), processar_mensagem)
             resumo_handler = CommandHandler("resumo", resumo_geral)
             categoria_handler = CommandHandler("categoria", resumo_por_categoria)
-
+            
             # Sensores do BOT
+            application.add_handler(start_handler)
+            application.add_handler(CallbackQueryHandler(button_handler))
             application.add_handler(msg_handler)
             application.add_handler(resumo_handler)
             application.add_handler(categoria_handler)
-            
+
             print("✅ Bot está online e ouvindo...")
             application.run_polling()
             
