@@ -14,7 +14,7 @@ def menu_principal(): # Menu Principal, para seleção de próximo processo. (Pa
     keyboard = [
         [
             InlineKeyboardButton("➕ Registrar Gasto", callback_data='menu_gasto'),
-            InlineKeyboardButton("📊 Ver Resumo", callback_data='menu_resumo'),
+            InlineKeyboardButton("📊 Ver Resumo", callback_data='menu_escolha_de_resumo'),
         ],
         [InlineKeyboardButton("⚙️ Configurações", callback_data='menu_config')]
     ]
@@ -27,7 +27,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.message.from_user.id # Pega o ID do usuário que mandou a mensagem
+    # Lógica para capturar o ID independente de como o comando veio
+    if update.message:
+        # Se veio por mensagem (/categoria)
+        user_data = update.message.from_user
+        responder = update.message.reply_text
+    else: 
+        # Se veio pelo clique do botão
+        user_data = update.callback_query.from_user
+        responder = update.callback_query.edit_message_text
+    
+    uid = user_data.id # Pega o ID do usuário que mandou a mensagem
+
     if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
         await update.message.reply_text("⚠️ *SECURITY ALERT* ⚠️\n\n"
         "Tentativa de acesso não autorizada detectada.\n"
@@ -40,7 +51,7 @@ async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYP
         categoria = linha[0]
         valor = linha[1]
         mensagem += f"🔹 {categoria}: R$ {valor:.2f}\n"
-    await update.message.reply_text(mensagem, parse_mode='Markdown')
+    await responder(mensagem, parse_mode='Markdown')
     
 
 async def resumo_geral(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -109,6 +120,13 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         await update.message.reply_text("❓ Não entendi o formato.\n Use: `Valor Descrição #categoria`")
 
+def menu_escolha_de_resumo(): 
+    keyboard_resumo = [
+        [InlineKeyboardButton("Resumo por Categoria", callback_data='resumo_categoria')], # Use listas dentro de listas
+        [InlineKeyboardButton("Resumo Geral", callback_data='menu_resumo')]
+    ]
+    return InlineKeyboardMarkup(keyboard_resumo) # Criando o Objeto de teclado
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = query.from_user.id # Pega o ID de quem mandou a mensagem
@@ -122,11 +140,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer() # Tira o relógio de carregamento do botão
 
     if query.data == 'menu_gasto':
-        await query.edit_message_text(text="Escolha a categoria ou digite o valor:") # 
+        await query.edit_message_text(text="Digite o valor:") # 
     
-    elif query.data == 'menu_resumo':
-        await query.edit_message_text(text="Calculando seus gastos...")
+    elif query.data == 'menu_escolha_de_resumo':
+        await query.edit_message_text(text="Selecione o tipo de resumo", reply_markup=menu_escolha_de_resumo()
+                                      )
+    elif query.data == 'menu_resumo': 
+        await query.edit_message_text(text="Calculando seus gastos *Gerais*", parse_mode='Markdown')
         return await resumo_geral(update, context)
+        
+    elif query.data == 'resumo_categoria':
+        await query.edit_message_text(text="Separando e calculando seus gastos por *Categorias*", parse_mode='Markdown')
+        return await resumo_por_categoria(update, context)
 
 
 if __name__ == '__main__':
