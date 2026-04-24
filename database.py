@@ -3,7 +3,7 @@ from datetime import datetime
 
 def conectar():
     """Conecta ao arquivo de banco de dados. Se não existir, o SQLite cria na hora."""
-    return sqlite3.connect('fincanceiro.db')
+    return sqlite3.connect('financeiro.db')
 
 def criar_tabela():
     """Define a estrutura (colunas) da nossa tabela de gastos."""
@@ -53,3 +53,13 @@ def db_resumo_por_categoria(usuario_id):
     print(f"O que o banco devolveu: {resultado}") # Para listar no terminal os dados
     conn.close()
     return resultado
+
+def deletar_gastos(usuario_id):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM gastos WHERE usuario_id = ?", (usuario_id,))
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='gastos'")
+    conn.commit()
+    conn.close()
+    return True
+

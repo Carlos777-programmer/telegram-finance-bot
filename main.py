@@ -26,6 +26,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=menu_principal()
     )
 
+def menu_configuracoes():
+    keyboard = [
+        [
+            InlineKeyboardButton("Deletar Gastos", callback_data='delet_gastos'),
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Lógica para capturar o ID independente de como o comando veio
     if update.message:
@@ -143,8 +152,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text="Digite o valor:") # 
     
     elif query.data == 'menu_escolha_de_resumo':
-        await query.edit_message_text(text="Selecione o tipo de resumo", reply_markup=menu_escolha_de_resumo()
-                                      )
+        await query.edit_message_text(text="Selecione o tipo de resumo", reply_markup=menu_escolha_de_resumo())
+
     elif query.data == 'menu_resumo': 
         await query.edit_message_text(text="Calculando seus gastos *Gerais*", parse_mode='Markdown')
         return await resumo_geral(update, context)
@@ -152,6 +161,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'resumo_categoria':
         await query.edit_message_text(text="Separando e calculando seus gastos por *Categorias*", parse_mode='Markdown')
         return await resumo_por_categoria(update, context)
+    
+    elif query.data == 'menu_config':
+        await query.edit_message_text(text="Como deseja prosseguir?", reply_markup=menu_configuracoes())
+    
+    elif query.data == 'delet_gastos':
+        await query.edit_message_text(text="Deletando seus *Gastos*...", parse_mode='Markdown')
+        return await database.deletar_gastos(update, context)
 
 
 if __name__ == '__main__':
