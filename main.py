@@ -138,37 +138,46 @@ def menu_escolha_de_resumo():
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    uid = query.from_user.id # Pega o ID de quem mandou a mensagem
-    if uid != USER_ID: # SEGURANÇA: Só responde se for o ID
-        await update.message.reply_text("⚠️ **SECURITY ALERT** ⚠️\n\n"
-        "Tentativa de acesso não autorizada detectada.\n"
-        "Este bot é de uso privado. 🔒", parse_mode='Markdown'
+    uid = query.from_user.id 
+
+    # SEGURANÇA: IF para verificação externa de segurança de ID, responde apenas ao ID cadastrado
+    if uid != USER_ID:
+        await update.message.reply_text(
+            "⚠️ **SECURITY ALERT** ⚠️\n\nEste bot é de uso privado. 🔒", 
+            parse_mode='Markdown'
         )
         return
-    query = update.callback_query
-    await query.answer() # Tira o relógio de carregamento do botão
 
-    if query.data == 'menu_gasto':
-        await query.edit_message_text(text="Digite o valor:") # 
-    
-    elif query.data == 'menu_escolha_de_resumo':
-        await query.edit_message_text(text="Selecione o tipo de resumo", reply_markup=menu_escolha_de_resumo())
+    await query.answer() 
 
-    elif query.data == 'menu_resumo': 
-        await query.edit_message_text(text="Calculando seus gastos *Gerais*", parse_mode='Markdown')
-        return await resumo_geral(update, context)
+    # Aqui entra o match/case para tratar os botões
+    match query.data:
+        case 'menu_gasto':
+            await query.edit_message_text(text="Digite o valor:")
         
-    elif query.data == 'resumo_categoria':
-        await query.edit_message_text(text="Separando e calculando seus gastos por *Categorias*", parse_mode='Markdown')
-        return await resumo_por_categoria(update, context)
-    
-    elif query.data == 'menu_config':
-        await query.edit_message_text(text="Como deseja prosseguir?", reply_markup=menu_configuracoes())
-    
-    elif query.data == 'delet_gastos':
-        await query.edit_message_text(text="Deletando seus *Gastos*...", parse_mode='Markdown')
-        return await database.deletar_gastos(update, context)
+        case 'menu_escolha_de_resumo':
+            await query.edit_message_text(
+                text="Selecione o tipo de resumo", 
+                reply_markup=menu_escolha_de_resumo()
+            )
 
+        case 'menu_resumo': 
+            await query.edit_message_text(text="Calculando seus gastos *Gerais*", parse_mode='Markdown')
+            return await resumo_geral(update, context)
+            
+        case 'resumo_categoria':
+            await query.edit_message_text(text="Separando e calculando seus gastos por *Categorias*", parse_mode='Markdown')
+            return await resumo_por_categoria(update, context)
+        
+        case 'menu_config':
+            await query.edit_message_text(text="Como deseja prosseguir?", reply_markup=menu_configuracoes())
+        
+        case 'delet_gastos':
+            await query.edit_message_text(text="*Gastos* deletado com sucesso!", parse_mode='Markdown')
+            return database.deletar_gastos(usuario_id=uid)
+        
+        case _: # Opcional: equivalente ao "else", captura qualquer comando não mapeado
+            await query.edit_message_text(text="Opção inválida.")
 
 if __name__ == '__main__':
     database.criar_tabela() # Cria a tabela no banco de dados assim que o bot liga (se não existir)    
