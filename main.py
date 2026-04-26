@@ -10,27 +10,40 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 USER_ID = int(os.getenv("MY_TELEGRAM_ID"))
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, nova_mensagem: bool = False):
+    texto = "Olá, Carlos! Como podemos prosseguir?"
+    
+    # Verifica se veio o valor bool do botão anterior é True ou False.
+    # Se for True, envia uma nova mensagem.
+    # Se for False, apenas edita a mensagem atual.
+    if update.callback_query and not nova_mensagem:
+        await update.callback_query.edit_message_text(
+            text=texto,
+            reply_markup=menu_principal()
+        )
+    else:
+        # Envia uma mensagem nova (usado no /start ou após salvar algo)
+        chat_id = update.effective_chat.id
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=texto,
+            reply_markup=menu_principal()
+        )
+
 def menu_principal(): # Menu Principal, para seleção de próximo processo. (Para melhor controle de Usuário.)
     keyboard = [
-        [
-            InlineKeyboardButton("➕ Registrar Gasto", callback_data='menu_gasto'),
-            InlineKeyboardButton("📊 Ver Resumo", callback_data='menu_escolha_de_resumo'),
-        ],
-        [InlineKeyboardButton("⚙️ Configurações", callback_data='menu_config')]
+        
+            [InlineKeyboardButton("➕ Registrar Gasto", callback_data='menu_gasto')],
+            [InlineKeyboardButton("📊 Ver Resumo", callback_data='menu_escolha_de_resumo')],
+            [InlineKeyboardButton("⚙️ Configurações", callback_data='menu_config')],
     ]
     return InlineKeyboardMarkup(keyboard) # Criando o objeto de teclado
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Olá, Carlos! Como podemos prosseguir?",
-        reply_markup=menu_principal()
-    )
-
 def menu_configuracoes():
     keyboard = [
-        [
-            InlineKeyboardButton("Deletar Gastos", callback_data='delet_gastos'),
-        ]
+
+            [InlineKeyboardButton("Deletar Gastos", callback_data='delet_gastos')],
+            [InlineKeyboardButton("⬅️ Voltar", callback_data='voltar_pag')],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -110,29 +123,41 @@ async def processar_mensagem(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if dados:
         try:
+            # 1. Primeiro salva no banco
             database.salvar_gasto(
                 usuario_id=update.message.from_user.id,
                 valor=dados['valor'],
                 descricao=dados['descricao'],
                 categoria=dados['categoria']
             )
+            
+            # 2. Prepara a resposta de confirmação
             resposta = (
                 f"✅ *Gasto Salvo!*\n"
-                f"---"
+                f"━━━━━━━━━━━━━━\n"
                 f"💰 *Valor:* R$ {dados['valor']:.2f}\n"
                 f"📝 *Descrição:* {dados['descricao']}\n"
                 f"🏷️ *Categoria:* #{dados['categoria']}"
             )
+            
+            # 3. Envia a confirmação
+            await update.message.reply_text(resposta, parse_mode='Markdown')
+            
+            # 4. AGORA chama o novo menu (em uma nova mensagem)
+            await start(update, context, nova_mensagem=True)
+
         except Exception as e: 
             resposta = f"❌ Erro ao salvar no banco: {e}"
-        await update.message.reply_text(resposta, parse_mode='Markdown')
+            await update.message.reply_text(resposta, parse_mode='Markdown')
+            
     else:
         await update.message.reply_text("❓ Não entendi o formato.\n Use: `Valor Descrição #categoria`")
 
 def menu_escolha_de_resumo(): 
     keyboard_resumo = [
         [InlineKeyboardButton("Resumo por Categoria", callback_data='resumo_categoria')], # Use listas dentro de listas
-        [InlineKeyboardButton("Resumo Geral", callback_data='menu_resumo')]
+        [InlineKeyboardButton("Resumo Geral", callback_data='menu_resumo')],
+        [InlineKeyboardButton("⬅️ Voltar", callback_data='voltar_pag')],
     ]
     return InlineKeyboardMarkup(keyboard_resumo) # Criando o Objeto de teclado
 
@@ -148,13 +173,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    await query.answer() 
+    await query.answer()
 
     # Aqui entra o match/case para tratar os botões
     match query.data:
         case 'menu_gasto':
-            await query.edit_message_text(text="Digite o valor:")
-        
+            # Definindo o teclado de desistência
+            keyboard = [[InlineKeyboardButton("⬅️ Cancelar/Voltar", callback_data='voltar_pag')]]
+            
+            await query.edit_message_text(
+                text="💰 *REGISTRAR GASTO*\n\nDigite o valor, descrição e categoria.\nExemplo: `50.75 Gasolina #carro`",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+
         case 'menu_escolha_de_resumo':
             await query.edit_message_text(
                 text="Selecione o tipo de resumo", 
@@ -163,11 +195,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         case 'menu_resumo': 
             await query.edit_message_text(text="Calculando seus gastos *Gerais*", parse_mode='Markdown')
-            return await resumo_geral(update, context)
+            await resumo_geral(update, context)
+            return await start(update, context, nova_mensagem=True)
             
         case 'resumo_categoria':
             await query.edit_message_text(text="Separando e calculando seus gastos por *Categorias*", parse_mode='Markdown')
-            return await resumo_por_categoria(update, context)
+            await resumo_por_categoria(update, context)
+            return await start(update, context, nova_mensagem=True)
         
         case 'menu_config':
             await query.edit_message_text(text="Como deseja prosseguir?", reply_markup=menu_configuracoes())
@@ -175,6 +209,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         case 'delet_gastos':
             await query.edit_message_text(text="*Gastos* deletado com sucesso!", parse_mode='Markdown')
             return database.deletar_gastos(usuario_id=uid)
+        
+        case 'voltar_pag':
+            # Aqui ele entra no IF do edit_message_text
+            await start(update, context, nova_mensagem=False)
         
         case _: # Opcional: equivalente ao "else", captura qualquer comando não mapeado
             await query.edit_message_text(text="Opção inválida.")
