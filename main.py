@@ -208,7 +208,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         case 'delet_gastos':
             await query.edit_message_text(text="*Gastos* deletado com sucesso!", parse_mode='Markdown')
-            return database.deletar_gastos(usuario_id=uid)
+            database.deletar_gastos(usuario_id=uid)
+            return await start(update, context, nova_mensagem=True)
         
         case 'voltar_pag':
             # Aqui ele entra no IF do edit_message_text

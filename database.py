@@ -1,5 +1,8 @@
 import sqlite3
 from datetime import datetime
+from main import start
+from telegram import Update
+from telegram.ext import ContextTypes
 
 def conectar():
     """Conecta ao arquivo de banco de dados. Se não existir, o SQLite cria na hora."""
@@ -62,4 +65,3 @@ def deletar_gastos(usuario_id):
     conn.commit()
     conn.close()
     return True
-
