@@ -42,11 +42,17 @@ def menu_principal(): # Menu Principal, para seleção de próximo processo. (Pa
 def menu_configuracoes():
     keyboard = [
 
-            [InlineKeyboardButton("Deletar Gastos", callback_data='delet_gastos')],
+            [InlineKeyboardButton("Deletar Gastos", callback_data='confirmacao_delet')],
             [InlineKeyboardButton("⬅️ Voltar", callback_data='voltar_pag')],
     ]
     return InlineKeyboardMarkup(keyboard)
 
+def deletar_gastos():
+    keyboard = [
+        [InlineKeyboardButton("Sim, tenho certeza", callback_data='delet_gastos')],
+        [InlineKeyboardButton("Não", callback_data='voltar_pag')],
+    ]
+    return InlineKeyboardMarkup(keyboard)
 
 async def resumo_por_categoria(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Lógica para capturar o ID independente de como o comando veio
@@ -207,9 +213,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text="Como deseja prosseguir?", reply_markup=menu_configuracoes())
         
         case 'delet_gastos':
-            await query.edit_message_text(text="*Gastos* deletado com sucesso!", parse_mode='Markdown')
+            await query.edit_message_text(text="✅ *Todos os registros foram apagados com sucesso!*", parse_mode='Markdown')
             database.deletar_gastos(usuario_id=uid)
             return await start(update, context, nova_mensagem=True)
+        
+        case 'confirmacao_delet':
+            await query.edit_message_text(text="⚠️ Você tem certeza que deseja deletar todos os gastos? Esta ação não pode ser desfeita.", reply_markup=deletar_gastos())
         
         case 'voltar_pag':
             # Aqui ele entra no IF do edit_message_text
