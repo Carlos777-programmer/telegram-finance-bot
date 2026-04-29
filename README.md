@@ -1,61 +1,101 @@
-# 💰 Financial Management Bot (Telegram + Python)
+# 💰 Telegram Financial Bot
 
-Este projeto é um sistema de gestão financeira pessoal que utiliza o Telegram como interface de entrada. O objetivo é permitir o registro rápido de despesas e receitas através de mensagens de texto simples, que são processadas e armazenadas em um banco de dados estruturado.
-
----
-
-## 🚀 Tecnologias Utilizadas
-
-* **Linguagem:** Python 3.x
-* **Interface:** Telegram Bot API
-* **Banco de Dados:** SQLite (Desenvolvimento) / PostgreSQL (Produção)
-* **Bibliotecas Principais:** * `python-telegram-bot`: Integração com a API do Telegram.
-    * `python-dotenv`: Gerenciamento de variáveis de ambiente (Segurança).
-    * `re` (Regex): Processamento de linguagem natural para extração de dados.
+Um bot de gestão financeira pessoal que permite registrar gastos de forma rápida e prática diretamente pelo Telegram, utilizando linguagem natural.
 
 ---
 
-## 🛠️ Funcionalidades Planejadas
+## 💡 Problema
 
-- [x] Registro de gastos via comandos simples (Ex: `50.00 Gasolina #carro`).
-- [x] Categorização automática utilizando hashtags.
-- [ ] Consulta de saldo e resumo mensal diretamente pelo chat.
-- [x] Sistema de segurança que responde apenas ao ID do proprietário.
-- [ ] Exportação de dados para CSV/Excel.
+Controlar gastos no dia a dia costuma ser algo demorado e pouco prático. Muitas pessoas deixam de registrar despesas por falta de agilidade.
 
 ---
 
-## 🏗️ Arquitetura do Projeto
+## ✅ Solução
 
-O projeto segue princípios de **Clean Code** e separação de responsabilidades:
+Este bot permite registrar despesas em segundos, usando mensagens simples como: 50 gasolina #carro
 
-- `bot/`: Lógica de interface e comandos do Telegram.
-- `core/`: Motor de processamento (Parser) que converte texto em objetos JSON.
-- `db/`: Camada de persistência e modelos do banco de dados.
 
----
-
-## 🔧 Como Rodar o Projeto
-
-1. **Clone o repositório:**
-   ```bash
-   git clone [https://github.com/Carlos777-programmer/financeiro-bot-telegram.git](https://github.com/Carlos777-programmer/financeiro-bot-telegram.git)
-
-2. **Instale as dependências**
-  - `pip install -r requirements.txt`
-
-3. **Configure as Variáveis de Ambiente**
-  - Crie um arquivo `.env` na raiz do seu projeto com as seguintes chaves:
-  - `TELEGRAM_TOKEN=seu_token_aqui`, `USER_ID=seu_id_telegram`
-
-4. **Inicie o Bot**
-  - `python main.py`
+Os dados são processados automaticamente e armazenados em banco de dados, permitindo consultas rápidas diretamente no chat.
 
 ---
 
-👤 Autor
-Carlos Marques - Estudante de Engenharia de Computação (UNIVESP) | CNC Programmer
+## 🚀 Funcionalidades
 
+- ✔️ Registro rápido de gastos via texto  
+- ✔️ Categorização automática com hashtags  
+- ✔️ Resumo geral de gastos  
+- ✔️ Resumo por categoria  
+- ✔️ Sistema de segurança (uso privado por ID)  
+- 🔜 Resumo mensal  
+- 🔜 Exportação para CSV/Excel  
 
+---
 
-   
+## 💬 Exemplos de uso
+
+### Entrada: 
+50 gasolina #carro
+
+### Saída:
+✅ Gasto Salvo!
+💰 R$ 50.00
+📝 gasolina
+🏷️ #carro
+
+---
+
+## 🧠 Arquitetura
+
+O projeto foi estruturado com separação de responsabilidades:
+
+- `bot/` → Interface com o Telegram (handlers e menus)  
+- `services/` → Regras de negócio  
+- `repositories/` → Acesso ao banco de dados  
+- `utils/` → Funções auxiliares (parser, autenticação)  
+- `config/` → Configurações e variáveis de ambiente  
+
+---
+
+## ⚙️ Tecnologias
+
+- Python 3.x  
+- Telegram Bot API  
+- SQLite  
+- python-telegram-bot  
+- python-dotenv  
+
+---
+
+## ▶️ Como rodar o projeto
+
+```bash
+git clone https://github.com/Carlos777-programmer/telegram-finance-bot.git
+cd telegram-finance-bot
+pip install -r requirements.txt
+
+# Crie um arquivo .env na raiz do projeto:
+
+TELEGRAM_TOKEN=seu_token 
+MY_TELEGRAM_ID=seu_id
+
+# Execute o projeto:
+
+python main.py
+```
+---
+
+## 📌 Melhorias futuras
+
+- Filtro por período (mensal/semanal)  
+- Exportação de dados  
+- Suporte a múltiplos usuários  
+- Dashboard web  
+
+---
+
+## 👤 Autor
+
+Carlos Marques  
+Estudante de Engenharia da Computação (UNIVESP)
+
+[LinkedIn](https://www.linkedin.com/in/carlos-marques-0b9346267/) | [GitHub](https://github.com/Carlos777-programmer)

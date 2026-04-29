@@ -1,3 +1,16 @@
-.env
+# Python
 __pycache__/
-*.db
+*.pyc
+
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+
+# Database
+financeiro.db
+
+# OS
+.DS_Store
+Thumbs.db
